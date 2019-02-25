@@ -14,11 +14,13 @@ import random
 
 A 2d shoot-em-up type game. 
 Author: Juho Keto-Tokoi (ketox on gitHub)
+Music by: joshuaempyre https://freesound.org/people/joshuaempyre/
 
 Game instructions:
 
 Dodge and shoot the purple enemies. You get points based on the amount of enemies you shoot.
 If you crash with an enemy or get hit by their bullets three times, you die.
+Everytime you kill and enemy, a new one spawns and it will be a little bit faster.
 
 Keybinds:
 w = up
@@ -30,7 +32,6 @@ spacebar = shoot
 TO-DO:
 
 game menu
-music
 highscores / leaderboards
 progressive difficulty based on the amount of points
 """
@@ -49,6 +50,8 @@ BLUE = (0,0,255)
 YELLOW = (255,255,0)
 ORANGE = (255,165,0)
 PURPLE = (128,0,128)
+
+PROGRESSIVE_DIFFICULTY = 1.5
 
 #these are for upcoming gamemenu
 GAMEMENU = 1
@@ -130,8 +133,8 @@ class enemyBlock(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = random.randrange(SCREEN_WIDTH-self.rect.width)
         self.rect.y = random.randrange(-200,-30)
-        self.speedy = random.randrange(6,12)
-        self.speedx = random.randrange(-5,5)
+        self.speedy = random.randrange(2,6)
+        self.speedx = random.randrange(-2,2)
         self.shootProp = random.randrange(1,10)
         self.shootCD = 20
 
@@ -212,12 +215,16 @@ def DisplayGameText(text,fontname,size,x,y,color = WHITE):
 
 
 #initialize game
+
+pygame.mixer.init(44100)
+pygame.mixer.music.load("Sounds/gameMusic2.wav")
+pygame.mixer.music.play(-1)
+
 pygame.init()
-pygame.mixer.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
 pygame.display.set_caption("blockGame")
 clock = pygame.time.Clock()
-enemyCount = 8
+enemyCount = 6
 
 gamesprites = pygame.sprite.Group()
 enemySprites = pygame.sprite.Group()
@@ -271,19 +278,23 @@ def gameLoop():
 
         #check collision between player and enemies
 
-        bodyHits = pygame.sprite.spritecollide(player,enemySprites,False)
+        bodyHits = pygame.sprite.spritecollide(player,enemySprites,True)
         playerBulletHits = pygame.sprite.groupcollide(enemySprites,playerBullets,True,True)
         enemyBulletHits = pygame.sprite.groupcollide(playersprites,enemyBullets,False,True)
 
         for hit in playerBulletHits:
             player.points += 1
             enemy = enemyBlock()
+            enemy.speedx += PROGRESSIVE_DIFFICULTY * player.points * 0.1
+            enemy.speedy += PROGRESSIVE_DIFFICULTY * player.points * 0.1
             gamesprites.add(enemy)
             enemySprites.add(enemy)
+
         for hit in enemyBulletHits:
             player.hit()
-        if (len(bodyHits) > 0 or player.health <= 0):
-            player.health = 0
+        for hit in bodyHits:
+            player.hit()
+        if (player.health <= 0):
             player.kill()
 
 
