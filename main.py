@@ -220,6 +220,8 @@ pygame.mixer.init(44100)
 pygame.mixer.music.load("Sounds/gameMusic2.wav")
 pygame.mixer.music.play(-1)
 
+playerHitSound = pygame.mixer.Sound("Sounds/hit-sound1.ogg")
+
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
 pygame.display.set_caption("blockGame")
@@ -293,6 +295,7 @@ def gameLoop():
             enemySprites.add(enemy)
 
         for hit in enemyBulletHits:
+            playerHitSound.play()
             player.hit()
         for hit in bodyHits:
             player.hit()
