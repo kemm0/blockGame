@@ -223,6 +223,8 @@ pygame.mixer.music.play(-1)
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
 pygame.display.set_caption("blockGame")
+gameIcon = pygame.image.load("Images/gameIcon.png")
+pygame.display.set_icon(gameIcon)
 clock = pygame.time.Clock()
 enemyCount = 6
 
