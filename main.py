@@ -1,9 +1,35 @@
 import pygame
+import os
 import random
 
+"""
+blockGame
+
+A 2d shoot-em-up type game. 
+Author: Juho Keto-Tokoi (ketox on gitHub)
+
+Game instructions:
+
+Dodge and shoot the purple enemies. You get points based on the amount of enemies you shoot.
+If you crash with an enemy or get hit by their bullets three times, you die.
+
+Keybinds:
+w = up
+a = left
+s = down
+d = right
+spacebar = shoot
+
+TO-DO:
+
+game menu
+highscores / leaderboards
+progressive difficulty based on the amount of points
+"""
+
 #settings
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1024
+SCREEN_HEIGHT = 576
 FPS = 30
 
 BLACK = (0,0,0)
@@ -11,8 +37,15 @@ WHITE = (255,255,255)
 GREEN = (0,255,0)
 RED = (255,0,0)
 BLUE = (0,0,255)
+YELLOW = (255,255,0)
+ORANGE = (255,165,0)
+PURPLE = (128,0,128)
 
+#these are for upcoming gamemenu
+GAMEMENU = 1
+GAMELOOP = 2
 
+#player class
 class playerBlock(pygame.sprite.Sprite):
     def __init__(self,width,height,speed,color):
         pygame.sprite.Sprite.__init__(self)
@@ -22,7 +55,9 @@ class playerBlock(pygame.sprite.Sprite):
         self.width = width
         self.height = height
         self.speed = speed
-        self.shootCD = 15
+        self.shootCD = 5
+        self.points = 0
+        self.health = 3
 
     def setSpeed(self,speed):
         self.speed = speed
@@ -30,6 +65,12 @@ class playerBlock(pygame.sprite.Sprite):
         self.color = color
     def setCenter(self,x,y):
         self.rect.center = (x,y)
+    def hit(self):  # make player change color based on health level
+        self.health -= 1
+        if(self.health == 2):
+            self.image.fill(YELLOW)
+        if(self.health == 1):
+            self.image.fill(RED)
 
     def update(self):
         keystate = pygame.key.get_pressed()
@@ -37,17 +78,25 @@ class playerBlock(pygame.sprite.Sprite):
             self.rect.x -= self.speed
         if keystate[pygame.K_RIGHT]:
             self.rect.x += self.speed
+        if keystate[pygame.K_UP]:
+            self.rect.y -= self.speed
+        if keystate[pygame.K_DOWN]:
+            self.rect.y += self.speed
 
         #stop moving off screen
         if self.rect.right > SCREEN_WIDTH:
             self.rect.right = SCREEN_WIDTH
         if self.rect.left < 0:
             self.rect.left = 0
+        if self.rect.bottom > SCREEN_HEIGHT:
+            self.rect.bottom = SCREEN_HEIGHT
+        if self.rect.top < 0:
+            self.rect.top = 0
 
     def shoot(self):
-        bullet = Bullet(self.rect.centerx,self.rect.top)
+        bullet = Bullet(self.rect.centerx,self.rect.top,-15)
         gamesprites.add(bullet)
-        bullets.add(bullet)
+        playerBullets.add(bullet)
 
 class enemyBlock(pygame.sprite.Sprite):
     def __init__(self):
@@ -55,12 +104,14 @@ class enemyBlock(pygame.sprite.Sprite):
         self.width = 30
         self. height = 30
         self.image = pygame.Surface((self.width,self.height))
-        self.image.fill(RED)
+        self.image.fill(PURPLE)
         self.rect = self.image.get_rect()
         self.rect.x = random.randrange(SCREEN_WIDTH-self.rect.width)
         self.rect.y = random.randrange(-200,-30)
         self.speedy = random.randrange(6,12)
         self.speedx = random.randrange(0,5)
+        self.shootProp = random.randrange(1,10)
+        self.shootCD = 20
 
     def setSpeed(self,speed):
         self.speed = speed
@@ -83,41 +134,56 @@ class enemyBlock(pygame.sprite.Sprite):
         if self.rect.x > SCREEN_WIDTH-self.width:
             self.speedx = -self.speedx
 
+    def shoot(self):
+        shootingPropability = random.randrange(1,10)
+        if shootingPropability == self.shootProp:
+            bullet = Bullet(self.rect.centerx,self.rect.bottom,20,WHITE)
+            enemyBullets.add(bullet)
+            gamesprites.add(bullet)
+
+
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self,x,y):
-        self.speedy = 15
-        self.width = 5
+    def __init__(self,x,y,speed,color = BLUE):
+        self.speedy = speed
+        self.width = 10
         self.height = 10
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.Surface((self.width,self.height))
-        self.image.fill(BLUE)
+        self.image.fill(color)
         self.rect = self.image.get_rect()
         self.rect.bottom = y
         self.rect.centerx = x
+        self.color = color
 
     def update(self):
-        self.rect.y -= self.speedy
+        self.rect.y += self.speedy
         #remove bullet, if its out of bounds
-        if self.rect.bottom <0:
+        if self.rect.bottom < 0 or self.rect.top > SCREEN_HEIGHT:
             self.kill()
 
 
 #initialize game
+os.environ['SDL_VIDEO_CENTERED'] = '1' #set gamescreen in the middle of computer screen
 pygame.init()
 pygame.mixer.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
 pygame.display.set_caption("blockGame")
 clock = pygame.time.Clock()
 
+comicsans = pygame.font.SysFont("comicsansms",30)
+
 gamesprites = pygame.sprite.Group()
 enemySprites = pygame.sprite.Group()
-bullets = pygame.sprite.Group()
+playerBullets = pygame.sprite.Group()
+enemyBullets = pygame.sprite.Group()
+playersprites = pygame.sprite.Group()
 
 player = playerBlock(50,50,10,GREEN)
 player.setCenter(SCREEN_WIDTH/2,SCREEN_HEIGHT-50)
 gamesprites.add(player)
+playersprites.add(player)
 
-for i in range(0,10):
+for i in range(0,8):
     enemy = enemyBlock()
     gamesprites.add(enemy)
     enemySprites.add(enemy)
@@ -136,28 +202,41 @@ def gameLoop():
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE and player.shootCD <= 0:
                     player.shoot()
-                    player.shootCD = 15
-        #update
+                    player.shootCD = 5
+         #update
         player.shootCD -= 1
+        for enemy in enemySprites:
+            enemy.shootCD -= 1
+            if enemy.shootCD < 0:
+                enemy.shoot()
+                enemy.shootCD = 10
+
         gamesprites.update()
+        text = comicsans.render("Points: {}".format(player.points), True, WHITE)
 
         #check collision between player and enemies
 
         bodyHits = pygame.sprite.spritecollide(player,enemySprites,False)
-        playerBulletHits = pygame.sprite.groupcollide(enemySprites,bullets,True,True)
+        playerBulletHits = pygame.sprite.groupcollide(enemySprites,playerBullets,True,True)
+        enemyBulletHits = pygame.sprite.groupcollide(playersprites,enemyBullets,False,True)
+
         for hit in playerBulletHits:
+            player.points += 1
             enemy = enemyBlock()
             gamesprites.add(enemy)
             enemySprites.add(enemy)
+        for hit in enemyBulletHits:
+            player.hit()
 
 
-        if bodyHits:
+        if bodyHits or player.health == 0:
             running = False
 
         #DRAW
         screen.fill(BLACK)
         gamesprites.draw(screen)
+        screen.blit(text, (20, 20))
         pygame.display.update()
 
-    pygame.quit()
+    #pygame.quit()
 gameLoop()
