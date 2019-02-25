@@ -23,6 +23,7 @@ spacebar = shoot
 TO-DO:
 
 game menu
+music
 highscores / leaderboards
 progressive difficulty based on the amount of points
 """
@@ -31,6 +32,7 @@ progressive difficulty based on the amount of points
 SCREEN_WIDTH = 1024
 SCREEN_HEIGHT = 576
 FPS = 30
+os.environ['SDL_VIDEO_CENTERED'] = '1' #set gamescreen in the middle of computer screen
 
 BLACK = (0,0,0)
 WHITE = (255,255,255)
@@ -45,7 +47,9 @@ PURPLE = (128,0,128)
 GAMEMENU = 1
 GAMELOOP = 2
 
-#player class
+"""
+Class for player characters in the game
+"""
 class playerBlock(pygame.sprite.Sprite):
     def __init__(self,width,height,speed,color):
         pygame.sprite.Sprite.__init__(self)
@@ -72,6 +76,12 @@ class playerBlock(pygame.sprite.Sprite):
         if(self.health == 1):
             self.image.fill(RED)
 
+    """
+    Updates the player's position based on keys that have been pressed. Checks screen boundaries, so that player
+    doesn't move off screen.
+    
+    return: None
+    """
     def update(self):
         keystate = pygame.key.get_pressed()
         if keystate[pygame.K_LEFT]:
@@ -93,6 +103,11 @@ class playerBlock(pygame.sprite.Sprite):
         if self.rect.top < 0:
             self.rect.top = 0
 
+    """
+    creates a new bullet and adds it to the list of sprites
+    
+    return: None
+    """
     def shoot(self):
         bullet = Bullet(self.rect.centerx,self.rect.top,-15)
         gamesprites.add(bullet)
@@ -109,7 +124,7 @@ class enemyBlock(pygame.sprite.Sprite):
         self.rect.x = random.randrange(SCREEN_WIDTH-self.rect.width)
         self.rect.y = random.randrange(-200,-30)
         self.speedy = random.randrange(6,12)
-        self.speedx = random.randrange(0,5)
+        self.speedx = random.randrange(-5,5)
         self.shootProp = random.randrange(1,10)
         self.shootCD = 20
 
@@ -119,11 +134,24 @@ class enemyBlock(pygame.sprite.Sprite):
         self.image.fill(color)
     def setCenter(self,x,y):
         self.rect.center = (x,y)
+
+    """
+    Resets the enemyBlock's location, y-axis speed, x-axis speed and shooting propability.
+    These are pseudo-random values.
+    
+    Return :None
+    """
     def reset(self):
         self.rect.x = random.randrange(SCREEN_WIDTH - self.rect.width)
         self.rect.y = random.randrange(-90, -30)
         self.speedy = random.randrange(2, 10)
+        self.speedx = random.randrange(-5, 5)
+        self.shootProp = random.randrange(1,10)
 
+    """
+    Checks if the enemy is in boundaries of the screen. If it collides with the sides, it changes direction. If it's 
+    below screen, it resets back up
+    """
     def update(self):
         self.rect.y += self.speedy
         self.rect.x += self.speedx
@@ -134,6 +162,11 @@ class enemyBlock(pygame.sprite.Sprite):
         if self.rect.x > SCREEN_WIDTH-self.width:
             self.speedx = -self.speedx
 
+    """
+    creates a new bullet and adds it to the lists of sprites
+    
+    return: None
+    """
     def shoot(self):
         shootingPropability = random.randrange(1,10)
         if shootingPropability == self.shootProp:
@@ -141,7 +174,9 @@ class enemyBlock(pygame.sprite.Sprite):
             enemyBullets.add(bullet)
             gamesprites.add(bullet)
 
-
+"""
+Bullet class, that's used by players and enemies.
+"""
 class Bullet(pygame.sprite.Sprite):
     def __init__(self,x,y,speed,color = BLUE):
         self.speedy = speed
@@ -155,22 +190,27 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.centerx = x
         self.color = color
 
+    """
+    moves the bullet with the amount of bullet's speed variable. If it's out of bounds, it gets deleted.
+    """
     def update(self):
         self.rect.y += self.speedy
-        #remove bullet, if its out of bounds
         if self.rect.bottom < 0 or self.rect.top > SCREEN_HEIGHT:
             self.kill()
 
+def DisplayGameText(text,fontname,size,x,y,color = WHITE):
+    messageFont = pygame.font.SysFont(fontname,size)
+    message = messageFont.render(text,True,color)
+    screen.blit(message,(x,y))
+
 
 #initialize game
-os.environ['SDL_VIDEO_CENTERED'] = '1' #set gamescreen in the middle of computer screen
 pygame.init()
 pygame.mixer.init()
 screen = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
 pygame.display.set_caption("blockGame")
 clock = pygame.time.Clock()
-
-comicsans = pygame.font.SysFont("comicsansms",30)
+enemyCount = 8
 
 gamesprites = pygame.sprite.Group()
 enemySprites = pygame.sprite.Group()
@@ -183,13 +223,21 @@ player.setCenter(SCREEN_WIDTH/2,SCREEN_HEIGHT-50)
 gamesprites.add(player)
 playersprites.add(player)
 
-for i in range(0,8):
+# Create enemyCount amount of enemies and add them to the lists of sprites
+for i in range(0,enemyCount):
     enemy = enemyBlock()
     gamesprites.add(enemy)
     enemySprites.add(enemy)
 
+
+"""
+The Loop for the actual game. Everything that happens in the actual game happens in this loop.
+
+return: None
+"""
 def gameLoop():
     running = True
+    gameOver = False
 
     while running:
         #keep fps
@@ -200,10 +248,11 @@ def gameLoop():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE and player.shootCD <= 0:
+                if event.key == pygame.K_SPACE and player.shootCD <= 0 and player.health >0:
                     player.shoot()
                     player.shootCD = 5
-         #update
+
+        #update everything
         player.shootCD -= 1
         for enemy in enemySprites:
             enemy.shootCD -= 1
@@ -212,7 +261,6 @@ def gameLoop():
                 enemy.shootCD = 10
 
         gamesprites.update()
-        text = comicsans.render("Points: {}".format(player.points), True, WHITE)
 
         #check collision between player and enemies
 
@@ -227,16 +275,22 @@ def gameLoop():
             enemySprites.add(enemy)
         for hit in enemyBulletHits:
             player.hit()
+        if (len(bodyHits) > 0 or player.health <= 0):
+            player.health = 0
+            player.kill()
 
 
-        if bodyHits or player.health == 0:
-            running = False
+        if(len(playersprites) == 0):
+            gameOver = True
 
-        #DRAW
+        #DRAW everything
         screen.fill(BLACK)
         gamesprites.draw(screen)
-        screen.blit(text, (20, 20))
+        DisplayGameText("Points: {}".format(player.points),"comicsansms",30,20,20)
+        if(gameOver):
+            DisplayGameText("YOU ARE DEAD","comicsansms",60,SCREEN_WIDTH/2-250,SCREEN_HEIGHT/2)
         pygame.display.update()
 
-    #pygame.quit()
 gameLoop()
+pygame.quit()
+quit()
