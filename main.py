@@ -13,7 +13,7 @@ import random
                                                       
 
 A 2d shoot-em-up type game. 
-Author: Juho Keto-Tokoi (ketox on gitHub)
+Author: Juho Keto-Tokoi (kemm0 on gitHub)
 Music by: joshuaempyre https://freesound.org/people/joshuaempyre/
 
 Game instructions:
